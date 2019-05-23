@@ -1,6 +1,8 @@
 package mapreduce
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // schedule starts and waits for all tasks in the given phase (Map or Reduce).
 func (mr *Master) schedule(phase jobPhase) {
