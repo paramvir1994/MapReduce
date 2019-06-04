@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func myFunc(waitgroup *sync.WaitGroup, mr *Master, ntasks int, nios int, id int,
+func initiateScheduler(waitgroup *sync.WaitGroup, mr *Master, ntasks int, nios int, id int,
 	phase jobPhase, mapPhase jobPhase) {
 
 	defer waitgroup.Done()
@@ -22,16 +22,16 @@ func myFunc(waitgroup *sync.WaitGroup, mr *Master, ntasks int, nios int, id int,
 	// to Workers which are doing nothing
 	nextInLine := <-mr.registerChannel
 
-	// send RPC call to worker
-	okOrNot := call(nextInLine, "Worker.DoTask", taskArgs, nil)
+	// Call worker (RPC)
+	success := call(nextInLine, "Worker.DoTask", taskArgs, nil)
 
 	go func() {
 		mr.registerChannel <- nextInLine
 	}()
 
-	for okOrNot == false {
+	for success == false {
 		nextInLine = <-mr.registerChannel
-		okOrNot = call(nextInLine, "Worker.DoTask", taskArgs, nil)
+		success = call(nextInLine, "Worker.DoTask", taskArgs, nil)
 		go func() {
 			// if a worker call fails reschedule the call on the next available worker
 			// continue giving the tasks to the workers as they resume normal
@@ -70,41 +70,11 @@ func (mr *Master) schedule(phase jobPhase) {
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(ntasks)
 
-	for t := 0; t < ntasks; t++ {
+	for i := 0; i < ntasks; i++ {
 
-		go myFunc(&waitgroup, mr, ntasks, nios, t, phase, mapPhase)
-		// task := DoTaskArgs{mr.jobName, mr.files[t], phase, t, nios}
-		// wChannels <- &task
+		go initiateScheduler(&waitgroup, mr, ntasks, nios, i, phase, mapPhase)
 	}
 	waitgroup.Wait()
-
-	/*
-		workerName := <-mr.registerChannel
-		args := new(DoTaskArgs)
-		args.Phase = phase
-		args.NumOtherPhase = nios
-		args.JobName = mr.jobName
-
-		for i := 0; i < ntasks; i++ {
-			args.File = mr.files[i]
-			args.TaskNumber = i
-			ok := call(workerName, "Worker.DoTask", args, new(struct{}))
-
-			for !ok {
-				outerBreak := false
-				for j := 0; j < len(mr.workers); j++ {
-					ok = call(mr.workers[j], "Worker.DoTask", args, new(struct{}))
-					if ok {
-						outerBreak = true
-						break
-					}
-				}
-				if outerBreak {
-					break
-				}
-			}
-		}
-	*/
 
 	fmt.Printf("Schedule: %v phase done\n", phase)
 }
