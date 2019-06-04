@@ -18,25 +18,24 @@ func initiateScheduler(waitgroup *sync.WaitGroup, mr *Master, ntasks int, nios i
 	taskArgs.TaskNumber = id
 	taskArgs.NumOtherPhase = nios
 
-	// schedule should process new worker registrations by reading from mr.registerChannel channel.
-	// to Workers which are doing nothing
-	nextInLine := <-mr.registerChannel
+	//process new worker registrations by reading from mr.registerChannel.
+	nectWorkerInChannel := <-mr.registerChannel
 
 	// Call worker (RPC)
-	success := call(nextInLine, "Worker.DoTask", taskArgs, nil)
+	success := call(nectWorkerInChannel, "Worker.DoTask", taskArgs, nil)
 
 	go func() {
-		mr.registerChannel <- nextInLine
+		mr.registerChannel <- nectWorkerInChannel
 	}()
 
 	for success == false {
-		nextInLine = <-mr.registerChannel
-		success = call(nextInLine, "Worker.DoTask", taskArgs, nil)
+		nectWorkerInChannel = <-mr.registerChannel
+		success = call(nectWorkerInChannel, "Worker.DoTask", taskArgs, nil)
 		go func() {
 			// if a worker call fails reschedule the call on the next available worker
 			// continue giving the tasks to the workers as they resume normal
 			// operation after failing as well.
-			mr.registerChannel <- nextInLine
+			mr.registerChannel <- nectWorkerInChannel
 
 		}()
 
